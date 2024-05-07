@@ -231,6 +231,17 @@ impl Operation {
 
         self
     }
+
+    /// Replace field selections in this operation by equivalent fragment spreads to reduce the
+    /// size of the serialized operation representation.
+    pub(crate) fn optimize(&mut self, fragments: &NamedFragments) {
+        const MIN_USAGES_TO_OPTIMIZE: u32 = 2;
+        if fragments.is_empty() {
+            return;
+        }
+
+        todo!("FED-191"); // TODO: port JS `Operation.optimize` from `operations.ts`
+    }
 }
 
 /// An analogue of the apollo-compiler type `SelectionSet` with these changes:
@@ -1799,27 +1810,6 @@ mod normalized_inline_fragment_selection {
 pub(crate) use normalized_inline_fragment_selection::InlineFragment;
 pub(crate) use normalized_inline_fragment_selection::InlineFragmentData;
 pub(crate) use normalized_inline_fragment_selection::InlineFragmentSelection;
-
-// TODO(@goto-bus-stop): merge this with the other Operation impl block.
-impl Operation {
-    pub(crate) fn optimize(
-        &mut self,
-        fragments: Option<&NamedFragments>,
-        min_usages_to_optimize: Option<u32>,
-    ) {
-        let min_usages_to_optimize = min_usages_to_optimize.unwrap_or(2);
-        let Some(fragments) = fragments else { return };
-        if fragments.is_empty() {
-            return;
-        }
-        assert!(
-            min_usages_to_optimize >= 1,
-            "Expected 'min_usages_to_optimize' to be at least 1, but got {min_usages_to_optimize}"
-        );
-
-        todo!(); // TODO: port JS `Operation.optimize` from `operations.ts`
-    }
-}
 
 /// A simple MultiMap implementation using IndexMap with Vec<V> as its value type.
 /// - Preserves the insertion order of keys and values.
