@@ -234,11 +234,54 @@ impl Operation {
 
     /// Replace field selections in this operation by equivalent fragment spreads to reduce the
     /// size of the serialized operation representation.
+    // XXX(@goto-bus-stop): the `fragments` argument is different from `self.fragments`?
     pub(crate) fn optimize(&mut self, fragments: &NamedFragments) {
         const MIN_USAGES_TO_OPTIMIZE: u32 = 2;
         if fragments.is_empty() {
             return;
         }
+
+        let Some(optimized_selection) = self.selection_set.optimize(fragments) else {
+            // Nothing to do.
+            return;
+        };
+
+        let fragments_to_keep = IndexMap::<Name, Node<executable::Fragment>>::new();
+        let mut used_fragments = fragments
+            .fragments
+            .keys()
+            .map(|name| (name.clone(), 0))
+            .collect::<HashMap<_, _>>();
+        optimized_selection.collect_used_fragment_names(&mut used_fragments);
+
+        // At this point, `usages` contains the usages of fragments "in the selection". From that, we want
+        // to decide which fragment to "keep", and which to re-expand. But there is 2 subtlety:
+        // 1. when we decide to keep some fragment F, then we should could it's own usages of other fragments. That
+        //  is, if a fragment G is use once in the selection, but also use once in a fragment F that we
+        //  keep, then the usages for G is really 2 (but if F is unused, then we don't want to count
+        //  it's usage of G for instance).
+        // 2. when we decide to expand a fragment, then this also impact the usages of other fragments it
+        //  uses, as those gets "inlined" into the selection. But that also mean we have to be careful
+        //  of the order in which we pick fragments to expand. Say we have:
+        //  ```graphql
+        //   query {
+        //      ...F1
+        //   }
+        //
+        //   fragment F1 {
+        //     a { ...F2 }
+        //     b { ...F2 }
+        //   }
+        //
+        //   fragment F2 {
+        //      // something
+        //   }
+        //  ```
+        //  then at this point where we've only counted usages in the query selection, `usages` will be
+        //  `{ F1: 1, F2: 0 }`. But we do not want to expand _both_ F1 and F2. Instead, we want to expand
+        //  F1 first, and then realize that this increases F2 usages to 2, which means we stop there and keep F2.
+        //  Generalizing this, it means we want to first pick up fragments to expand that are _not_ used by any
+        //  other fragments that may be expanded.
 
         todo!("FED-191"); // TODO: port JS `Operation.optimize` from `operations.ts`
     }
@@ -3137,6 +3180,12 @@ impl SelectionSet {
     /// Returns true if this selection is a superset of the other selection.
     pub(crate) fn contains(&self, other: &Self) -> bool {
         self.containment(other, Default::default()).is_contained()
+    }
+
+    /// Reduce the serialized size of this selection set by replacing recurring field selections by
+    /// equivalent fragment sets. Returns None if the selection set could not be optimized.
+    fn optimize(&mut self, fragments: &NamedFragments) -> Option<SelectionSet> {
+        todo!("FED-191")
     }
 }
 
