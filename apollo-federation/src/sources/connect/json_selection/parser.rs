@@ -378,6 +378,8 @@ impl SubSelection {
     // self.selections, we can provide an index-based search method that returns
     // an unforgeable NamedSelectionIndex, which can later be used to access the
     // selection using either get_at_index or get_at_index_mut.
+    // TODO In the future, this method could make use of an internal lookup
+    // table to avoid linear search.
     pub fn index_of_named_selection(&self, name: &str) -> Option<NamedSelectionIndex> {
         self.selections
             .iter()

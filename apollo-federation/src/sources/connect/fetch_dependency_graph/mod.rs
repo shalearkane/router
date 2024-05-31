@@ -242,24 +242,12 @@ impl FetchDependencyGraphApi for FetchDependencyGraph {
                         "expecting a subselection in our selection",
                     ))?;
 
-            // Helper method for finding existing references of names within a vec of keys
-            fn name_matches(seen_selection: &NamedSelection, name: &Name) -> bool {
-                match seen_selection {
-                    NamedSelection::Field(Some(alias), _, _)
-                    | NamedSelection::Quoted(alias, _, _)
-                    | NamedSelection::Path(alias, _)
-                    | NamedSelection::Group(alias, _) => alias.name() == name.as_str(),
-                    NamedSelection::Field(None, field, _) => field == name.as_str(),
-                }
-            }
-
             // Now we need to traverse the hierarchy behind the supplied node, updating its JSONSelections
             // along the way as we find missing members needed by the new source path.
             let mut subselection_ref = subselection;
             for (name, keys) in named_selections {
                 // If we have a selection already, we'll need to make sure that it includes the new field,
                 // then we process the next subselection in the path chain.
-                // TODO: This is probably not very performant, but we only have a Vec to work with...
                 subselection_ref = if let Some(index) =
                     subselection_ref.index_of_named_selection(&name)
                 {
@@ -309,11 +297,10 @@ impl FetchDependencyGraphApi for FetchDependencyGraph {
             // Note: The subselection_ref here is now the furthest down in the chain, which is where we need
             // it to be.
             match tail_subselection {
-                // TODO: This is probably not very performant, but we only have a Vec to work with...
                 PathTailSelection::Selection { property_path } => {
-                    if !subselection_ref
-                        .selections_iter()
-                        .any(|s| name_matches(s, &tail_name))
+                    if subselection_ref
+                        .index_of_named_selection(&tail_name)
+                        .is_none()
                     {
                         subselection_ref.append_selection(NamedSelection::Path(
                             Alias::new(tail_name.to_string().as_str()),
@@ -322,9 +309,9 @@ impl FetchDependencyGraphApi for FetchDependencyGraph {
                     }
                 }
                 PathTailSelection::CustomScalarPathSelection { path_selection } => {
-                    if !subselection_ref
-                        .selections_iter()
-                        .any(|s| name_matches(s, &tail_name))
+                    if subselection_ref
+                        .index_of_named_selection(&tail_name)
+                        .is_none()
                     {
                         subselection_ref.append_selection(NamedSelection::Path(
                             Alias::new(tail_name.to_string().as_str()),
